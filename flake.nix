@@ -63,7 +63,10 @@
           mkScope = src:
             let
               scope = buildOpamProject'
-                { resolveArgs.env.monorepo = 1; } src { conf-libseccomp = null; };
+                # pass monorepo = 1 to `opam admin list` to pick up dependencies marked with {?monorepo}
+                { resolveArgs.env.monorepo = 1; }
+                src
+                { conf-libseccomp = null; };
               overlay = final: prev: {
                 hello = (prev.hello.override {
                   # Gets opam-nix to pick up dependencies marked with {?monorepo}
@@ -76,12 +79,32 @@
             ocaml-solo5-sysroot = pkgs.runCommand "ocaml-solo5-sysroot" {
                 version = prev.ocaml.version;
               } ''
-                # patch ocaml-solo5 to fix https://github.com/mirage/ocaml-solo5/issues/121
                 cp -Lr --no-preserve=ownership ${final.ocaml-solo5}/solo5-sysroot $out
                 chmod +rw $out
                 cp -Lr ${final.ocaml-solo5}/nix-support $out
               ''; 
-            hello = prev.hello.override { ocaml = final.ocaml-solo5-sysroot; };
+            
+            #mirage-solo5 = (prev.mirage-solo5.override {
+            #  nixpkgs = pkgs // { stdenv = pkgs.stdenvNoLibs; };
+            #  ocaml = final.ocaml-solo5-sysroot;
+            #}).overrideAttrs (oa: {
+            #  preBuild = ''
+            #    export NIX_CFLAGS_COMPILE="-I${pkgs.solo5}/include/solo5 -I${final.ocaml-solo5-sysroot}/include/nolibc"
+            #    cat << EOF >> dune-workspace
+            #    (lang dune 2.0)
+            #    (context (default (name solo5)))
+            #    EOF
+            #  '';
+            #});
+
+            hello = (prev.hello.override {
+              ocaml = final.ocaml-solo5-sysroot;
+            }).overrideAttrs (_ : {
+              buildPhase = ''
+                #sed -i 's|(toolchain solo5)||' dune-workspace
+                dune build
+              '';
+            });
           };
 
         in {
@@ -100,3 +123,4 @@
         };
       });
 }
+
