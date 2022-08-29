@@ -1,13 +1,23 @@
 {
   description = "A hello world unikernel";
 
-  inputs.opam-nix.url = "github:tweag/opam-nix";
-  inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nixpkgs.url = "github:nixos/nixpkgs";
+
+  inputs.flake-utils.url = "github:numtide/flake-utils";
+  inputs.flake-utils.inputs.nixpkgs.follows = "nixpkgs";
+
+  inputs.opam-nix.url = "github:tweag/opam-nix";
+  inputs.opam-nix.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.opam-nix.inputs.flake-utils.follows = "flake-utils";
+
+  inputs.opam2json.url = "github:tweag/opam2json";
+  inputs.opam2json.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.opam-nix.inputs.opam2json.follows = "opam2json";
+
   # beta so pin commit
   inputs.nix-filter.url = "github:numtide/nix-filter/3e1fff9";
-    
-  outputs = { self, nixpkgs, nix-filter, opam-nix, flake-utils }:
+
+  outputs = { self, nixpkgs, flake-utils, opam-nix, opam2json, nix-filter }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -44,7 +54,7 @@
                 mirage configure -t ${target}
                 # Rename the opam file for package name consistency
                 # And move to root so a recursive search for opam files isn't required
-                mv mirage/hello-${target}.opam hello.opam
+                cp mirage/hello-${target}.opam hello.opam
               '';
               installPhase = "cp -R . $out";
             };
