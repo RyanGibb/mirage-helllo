@@ -48,12 +48,7 @@
                 filter {
                   root = self;
                   include = [
-                    (inDirectory "data")
-                    (inDirectory "mirage")
                     "config.ml"
-                    "dune"
-                    "dune-project"
-                    "dune.config"
                     "unikernel.ml"
                   ];
                 };
