@@ -92,6 +92,9 @@
               buildPhase = ''
                 dune build
               '';
+              installPhase = ''
+                cp -rL ./_build/install/default/bin/ $out
+              '';
             });
           };
 
