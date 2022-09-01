@@ -17,7 +17,17 @@
   # beta so pin commit
   inputs.nix-filter.url = "github:numtide/nix-filter/3e1fff9";
 
-  outputs = { self, nixpkgs, flake-utils, opam-nix, opam2json, nix-filter }:
+  inputs.opam-repository = {
+    url = "github:ocaml/opam-repository";
+    flake = false;
+  };
+  inputs.opam-nix.inputs.opam-repository.follows = "opam-repository";
+  inputs.opam-overlays = {
+    url = "github:dune-universe/opam-overlays";
+    flake = false;
+  };
+
+  outputs = { self, nixpkgs, flake-utils, opam-nix, opam2json, nix-filter, opam-repository, opam-overlays, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -63,8 +73,11 @@
           mkScope = src:
             let
               scope = buildOpamProject'
-                # pass monorepo = 1 to `opam admin list` to pick up dependencies marked with {?monorepo}
-                { resolveArgs.env.monorepo = 1; }
+                {
+                  # pass monorepo = 1 to `opam admin list` to pick up dependencies marked with {?monorepo}
+                  resolveArgs.env.monorepo = 1;
+                  repos = [ opam-repository opam-overlays ];
+                }
                 src
                 { conf-libseccomp = null; };
               overlay = final: prev: {
@@ -77,31 +90,24 @@
 
           virtio-overlay = final: prev: {
             ocaml-solo5-sysroot = pkgs.runCommand "ocaml-solo5-sysroot" {
-                version = prev.ocaml.version;
-              } ''
-                cp -Lr --no-preserve=ownership ${final.ocaml-solo5}/solo5-sysroot $out
-                chmod +rw $out
-                cp -Lr ${final.ocaml-solo5}/nix-support $out
-              ''; 
-            
-            #mirage-solo5 = (prev.mirage-solo5.override {
-            #  nixpkgs = pkgs // { stdenv = pkgs.stdenvNoLibs; };
-            #  ocaml = final.ocaml-solo5-sysroot;
-            #}).overrideAttrs (oa: {
-            #  preBuild = ''
-            #    export NIX_CFLAGS_COMPILE="-I${pkgs.solo5}/include/solo5 -I${final.ocaml-solo5-sysroot}/include/nolibc"
-            #    cat << EOF >> dune-workspace
-            #    (lang dune 2.0)
-            #    (context (default (name solo5)))
-            #    EOF
-            #  '';
-            #});
+              version = prev.ocaml.version;
+            } ''
+              cp -Lr --no-preserve=ownership ${final.ocaml-solo5}/solo5-sysroot $out
+              chmod -R +rw $out
+              # findlb.conf.d/solo5.conf is installed in default switch (not cross compilation switch)
+              mkdir $out/lib/findlib.conf.d
+              cp -Lr --no-preserve=ownership ${final.ocaml-solo5}/lib/findlib.conf.d/solo5.conf $out/lib/findlib.conf.d/
+              cp -Lr ${final.ocaml-solo5}/nix-support $out
+            '';
 
             hello = (prev.hello.override {
               ocaml = final.ocaml-solo5-sysroot;
             }).overrideAttrs (_ : {
+              preBuild = ''
+                export OCAMLFIND_CONF="${final.ocaml-solo5}/lib/findlib.conf"
+              '';
+              phases = [ "unpackPhase" "preBuild" "buildPhase" "installPhase" ];
               buildPhase = ''
-                #sed -i 's|(toolchain solo5)||' dune-workspace
                 dune build
               '';
             });
