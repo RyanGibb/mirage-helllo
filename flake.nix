@@ -89,20 +89,7 @@
             in scope.overrideScope' overlay;
 
           virtio-overlay = final: prev: {
-            ocaml-solo5-sysroot = pkgs.runCommand "ocaml-solo5-sysroot" {
-              version = prev.ocaml.version;
-            } ''
-              cp -Lr --no-preserve=ownership ${final.ocaml-solo5}/solo5-sysroot $out
-              chmod -R +rw $out
-              # findlb.conf.d/solo5.conf is installed in default switch (not cross compilation switch)
-              mkdir $out/lib/findlib.conf.d
-              cp -Lr --no-preserve=ownership ${final.ocaml-solo5}/lib/findlib.conf.d/solo5.conf $out/lib/findlib.conf.d/
-              cp -Lr ${final.ocaml-solo5}/nix-support $out
-            '';
-
-            hello = (prev.hello.override {
-              ocaml = final.ocaml-solo5-sysroot;
-            }).overrideAttrs (_ : {
+            hello = (prev.hello.override { } ).overrideAttrs (_ : {
               preBuild = ''
                 export OCAMLFIND_CONF="${final.ocaml-solo5}/lib/findlib.conf"
               '';
