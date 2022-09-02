@@ -97,6 +97,7 @@
                   scopeFilter = name: builtins.elem "${name}" ignoredAttrs;
                   createDep = name: path: ''
                     if [ -d ${path}/lib/ocaml/${final.ocaml.version}/site-lib/${name}/ ]; then
+                      # TODO try symlinking
                       cp -r ${path}/lib/ocaml/${final.ocaml.version}/site-lib/${name}/ duniverse/${name};
                     fi
                   '';
