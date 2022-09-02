@@ -31,8 +31,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        inherit (opam-nix.lib.${system})
-          buildOpamProject' queryToScope opamRepository;
+        inherit (opam-nix.lib.${system}) queryToScope makeOpamRepo;
       in {
         legacyPackages = let
 
@@ -67,14 +66,17 @@
           # Stage 2: read all the opam files from the configured source, and build the hello package
           mkScope = src:
             let
-              scope = buildOpamProject'
+              local-repo = makeOpamRepo src;
+              scope = queryToScope
                 {
                   # pass monorepo = 1 to `opam admin list` to pick up dependencies marked with {?monorepo}
                   resolveArgs.env.monorepo = 1;
-                  repos = [ opam-repository opam-overlays ];
+                  repos = [ local-repo opam-repository opam-overlays ];
                 }
-                src
-                { conf-libseccomp = "*"; };
+                {
+                  conf-libseccomp = "*";
+                  hello = "*";
+                };
               overlay = final: prev: {
                 hello = (prev.hello.override {
                   # Gets opam-nix to pick up dependencies marked with {?monorepo}
