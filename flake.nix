@@ -39,7 +39,7 @@
           # Stage 1: run `mirage configure` on source
           # with mirage, dune, and ocaml from `opam-nix`
           configureSrcFor = target:
-            let configure-scope = queryToScope { } { mirage = null; }; in
+            let configure-scope = queryToScope { } { mirage = "*"; }; in
             pkgs.stdenv.mkDerivation {
               name = "configured-src";
               # only copy these files
@@ -74,7 +74,7 @@
                   repos = [ opam-repository opam-overlays ];
                 }
                 src
-                { conf-libseccomp = null; };
+                { conf-libseccomp = "*"; };
               overlay = final: prev: {
                 hello = (prev.hello.override {
                   # Gets opam-nix to pick up dependencies marked with {?monorepo}

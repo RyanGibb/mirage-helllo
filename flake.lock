@@ -79,11 +79,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1661197818,
-        "narHash": "sha256-63fsKG2hkfRt6Lo4Gk6rTET/LgoNzuhItXrLX+yfmyk=",
+        "lastModified": 1662035839,
+        "narHash": "sha256-s3mwSriveKbQvQPBed8r5Qg5ACJVxl2HvB3Kc1KPSFQ=",
         "owner": "tweag",
         "repo": "opam-nix",
-        "rev": "5ecf937dbdbba69ac2cba9a6d17332e9912b6978",
+        "rev": "e7b16f5a2b4706a6f7a115f1653d85ab85fc0c96",
         "type": "github"
       },
       "original": {
