@@ -85,15 +85,31 @@
 
           virtio-overlay = final: prev: {
             hello = (prev.hello.override { } ).overrideAttrs (_ : {
-              preBuild = ''
+              preBuild =
+                let
+                  ignoredAttrs = [
+                    "overrideScope" "overrideScope'" "result" "callPackage" "newScope"
+                    # need to know name of binary in advance
+                    "hello" "nixpkgs" "packages" "dune" "ocaml" "mirage"
+                  ];
+                  scopeFilter = name: builtins.elem "${name}" ignoredAttrs;
+                  createDep = name: path: ''
+                    if [ -d ${path}/lib/ocaml/${final.ocaml.version}/site-lib/${name}/ ]; then
+                      cp -r ${path}/lib/ocaml/${final.ocaml.version}/site-lib/${name}/ duniverse/${name};
+                    fi
+                  '';
+                  createDeps = nixpkgs.lib.attrsets.mapAttrsToList
+                      (name: path: if scopeFilter name then "" else createDep name path)
+                      final;
+                  createDuniverse = builtins.concatStringsSep "\n" createDeps;
+                in
+              ''
                 # find solo5 toolchain
                 export OCAMLFIND_CONF="${final.ocaml-solo5}/lib/findlib.conf"
+                # create duniverse
                 mkdir duniverse
                 echo '(vendored_dirs *)' > duniverse/dune
-                # ln -s ${final.mirage-time}/lib/ocaml/${final.ocaml.version}/site-lib/mirage-time duniverse/mirage-time 
-                #cp -R ${final.mirage-time}/lib/ocaml/${final.ocaml.version}/site-lib/mirage-time duniverse/mirage-time 
-
-                ${builtins.concatStringsSep "\n" (nixpkgs.lib.attrsets.mapAttrsToList (name: path: if builtins.elem "${name}" [ "overrideScope" "overrideScope'" "result" "callPackage" "newScope" "hello" "nixpkgs" "packages" "dune" "ocaml" "mirage" ] then "" else "if [ -d ${path}/lib/ocaml/${final.ocaml.version}/site-lib/${name}/ ]; then ln -s ${path}/lib/ocaml/${final.ocaml.version}/site-lib/${name}/ duniverse/${name}; fi") final)}
+                ${createDuniverse}
               '';
               phases = [ "unpackPhase" "preBuild" "buildPhase" "installPhase" ];
               buildPhase = ''
