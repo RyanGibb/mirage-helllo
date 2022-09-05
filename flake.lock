@@ -111,8 +111,8 @@
         ]
       },
       "locked": {
-        "lastModified": 1662144591,
-        "narHash": "sha256-AxlIDUBebeoFiXpzsaGTMBJPDnj2rUQPjJFR9TQgW0w=",
+        "lastModified": 1662372500,
+        "narHash": "sha256-Bc7K8tjnHU6mp3WSTg38wt0kOaWa14v1C0EhY6Axh5w=",
         "path": "/home/ryan/projects/opam-nix",
         "type": "path"
       },

@@ -34,7 +34,8 @@
   inputs.opam-nix-monorepo.inputs.opam2json.follows = "opam2json";
   inputs.opam-nix-monorepo.inputs.flake-compat.follows = "opam-nix";
 
-  outputs = { self, nixpkgs, flake-utils, opam-nix, opam-nix-monorepo, opam2json, nix-filter, opam-repository, opam-overlays, ... }:
+  outputs = { self, nixpkgs, flake-utils, opam-nix, opam-nix-monorepo,
+      opam2json, nix-filter, opam-repository, opam-overlays, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -43,14 +44,13 @@
       in {
         legacyPackages = let
 
-          # Stage 1: run `mirage configure` on source
+          # run `mirage configure` on source,
           # with mirage, dune, and ocaml from `opam-nix`
           configureSrcFor = target:
             let configure-scope = queryToScope { } { mirage = "*"; }; in
             pkgs.stdenv.mkDerivation {
               name = "configured-src";
-              # only copy these files
-              # means only rebuilds when these files change
+              # only copy these files and only rebuild when they change
               src = with nix-filter.lib;
                 filter {
                   root = self;
@@ -71,106 +71,100 @@
               installPhase = "cp -R . $out";
             };
 
-          # Stage 2: read all the opam files from the configured source, and build the hello package
+          # read all the opam files from the configured source and build the hello package
           mkScope = src:
             let
               local-repo = makeOpamRepo src;
               scope = queryToScope
                 {
-                  # pass monorepo = 1 to `opam admin list` to pick up dependencies marked with {?monorepo}
+                  # pass monorepo = 1 to `opam admin list`
+                  # pick up dependencies marked with {?monorepo}
                   resolveArgs.env.monorepo = 1;
                   repos = [ local-repo opam-repository opam-overlays ];
                 }
                 {
                   conf-libseccomp = "*";
+                  # need to know name of binary in advance
                   hello = "*";
                 };
               overlay = final: prev: {
                 hello = prev.hello.override {
-                  # Gets opam-nix to pick up dependencies marked with {?monorepo}
+                  # pick up dependencies marked with {?monorepo}
                   extraVars.monorepo = true;
                 };
               };
             in scope.overrideScope' overlay;
 
+          # collect all dependancy sources in a scope
+          mkMonorepoScope = src:
+            let
+              local-repo = makeOpamRepo src;
+              scope = opam-nix-monorepo-lib.queryToScope
+                {
+                  # pass monorepo = 1 to `opam admin list` to pick up dependencies marked with {?monorepo}
+                  resolveArgs.env.monorepo = 1;
+                  repos = [ local-repo opam-repository opam-overlays ];
+                }
+                { hello = "*"; };
+              monorepo-overlay = final: prev: {
+                hello = prev.hello.override {
+                  # Gets opam-nix to pick up dependencies marked with {?monorepo}
+                  extraVars.monorepo = true;
+                };
+              };
+            in scope.overrideScope' monorepo-overlay;
+
           mkScopeSolo5 = src:
             let
               local-repo = makeOpamRepo src;
               scope = queryToScope
-                {
-                  repos = [ local-repo opam-repository ];
-                }
-                {
-                  conf-libseccomp = "*";
-                  hello = "*";
-                };
+                { repos = [ local-repo opam-repository ]; }
+                { hello = "*"; };
               overlay = final: prev: {
-                hello = (prev.hello.override {
-                  # Gets opam-nix to pick up dependencies marked with {?monorepo}
-                  extraVars.monorepo = true;
-                }).overrideAttrs (_ :
-                let
-                  monorepo-scopeB = opam-nix-monorepo-lib.queryToScope
-                    {
-                      # pass monorepo = 1 to `opam admin list` to pick up dependencies marked with {?monorepo}
-                      resolveArgs.env.monorepo = 1;
-                      repos = [ local-repo opam-repository opam-overlays ];
-                    }
-                    {
-                      conf-libseccomp = "*";
-                      hello = "*";
-                    };
-                  monorepo-overlay = final: prev: {
-                    hello = prev.hello.override {
-                      # Gets opam-nix to pick up dependencies marked with {?monorepo}
-                      extraVars.monorepo = true;
-                    };
-                  };
-                  monorepo-scope = monorepo-scopeB.overrideScope' monorepo-overlay;
-                in
-                {
-                  preBuild =
-                    let
-                      ignoredAttrs = [
-                        "overrideScope" "overrideScope'" "result" "callPackage" "newScope"
-                        # need to know name of binary in advance
-                        "hello" "nixpkgs" "packages" "dune" "ocaml" "mirage"
-                      ];
-                      scopeFilter = name: builtins.elem "${name}" ignoredAttrs;
-                      createDep = name: path: ''
-                        if [ -d ${path}/lib/ocaml/${final.ocaml.version}/site-lib/${name}/ ]; then
-                          # TODO try symlinking
-                          cp -r ${path}/lib/ocaml/${final.ocaml.version}/site-lib/${name}/ duniverse/${name};
-                        fi
-                      '';
-                      createDeps = nixpkgs.lib.attrsets.mapAttrsToList
-                          (name: path: if scopeFilter name then "" else createDep name path)
-                          monorepo-scope;
-                      createDuniverse = builtins.concatStringsSep "\n" createDeps;
-                    in
-                  ''
-                    # find solo5 toolchain
-                    export OCAMLFIND_CONF="${final.ocaml-solo5}/lib/findlib.conf"
-                    # create duniverse
-                    mkdir duniverse
-                    echo '(vendored_dirs *)' > duniverse/dune
-                    ${createDuniverse}
-                  '';
-                  phases = [ "unpackPhase" "preBuild" "buildPhase" "installPhase" ];
-                  buildPhase = ''
-                    find -L duniverse
-                    dune build
-                  '';
-                  installPhase = ''
-                    cp -rL ./_build/install/default/bin/ $out
-                  '';
-                });
+                hello = prev.hello.overrideAttrs (_ :
+                  let monorepo-scope = mkMonorepoScope src; in
+                  {
+                    phases = [ "unpackPhase" "preBuild" "buildPhase" "installPhase" ];
+                    preBuild =
+                      let
+                        ignoredAttrs = [
+                          "overrideScope" "overrideScope'" "result" "callPackage" "newScope"
+                          "hello" "nixpkgs" "packages" "dune" "ocaml" "mirage"
+                          # TODO: only pick up dependencies marked with {?monorepo}
+                          "functoria" "functoria-runtime" "macaddr" "mirage-clock" "ppx_cstruct" "opam-monorepo"
+                        ];
+                        scopeFilter = name: builtins.elem "${name}" ignoredAttrs;
+                        # TODO get dune build to pick up symlinks
+                        createDep = name: path: "cp -r ${path} duniverse/${name}";
+                        createDeps = nixpkgs.lib.attrsets.mapAttrsToList
+                            (name: path: if scopeFilter name then "" else createDep name path)
+                            monorepo-scope;
+                        createDuniverse = builtins.concatStringsSep "\n" createDeps;
+                      in
+                    ''
+                      # find solo5 toolchain
+                      export OCAMLFIND_CONF="${final.ocaml-solo5}/lib/findlib.conf"
+                      # create duniverse
+                      mkdir duniverse
+                      echo '(vendored_dirs *)' > duniverse/dune
+                      ${createDuniverse}
+                    '';
+                    buildPhase = "dune build";
+                    installPhase = "cp -rL ./_build/install/default/bin/ $out";
+                  }
+                );
               };
             in scope.overrideScope' overlay;
 
         in {
           unix = mkScope (configureSrcFor "unix");
           virtio = mkScopeSolo5 (configureSrcFor "virtio");
+          hvt = mkScopeSolo5 (configureSrcFor "hvt");
+          monorepo = {
+            unix = mkMonorepoScope (configureSrcFor "unix");
+            virtio = mkMonorepoScope (configureSrcFor "virtio");
+            hvt = mkMonorepoScope (configureSrcFor "hvt");
+          };
         };
 
         defaultPackage = self.legacyPackages.${system}.unix.hello;
