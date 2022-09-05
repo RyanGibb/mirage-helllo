@@ -140,11 +140,11 @@
             in scope.overrideScope' overlay;
 
           targets = [ "unix" "virtio" "hvt" ];
-          mapListToAttrs = list: f:
-            let mappedList = builtins.map (elem: lib.attrsets.nameValuePair elem (f elem)) list; in
-            builtins.listToAttrs mappedList;
-          targetScopes = mapListToAttrs targets (target: mkScope (configureSrcFor target));
-          targetMonorepoScopes = mapListToAttrs targets (target: mkMonorepoScope (configureSrcFor target));
+          mapTargets = f:
+            let mappedTargets = builtins.map (target: lib.attrsets.nameValuePair target (f (configureSrcFor target))) targets; in
+            builtins.listToAttrs mappedTargets;
+          targetScopes = mapTargets mkScope;
+          targetMonorepoScopes = mapTargets mkMonorepoScope;
         in targetScopes  // { monorepo = targetMonorepoScopes ; };
 
         # need to know package name
