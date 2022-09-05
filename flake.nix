@@ -27,7 +27,7 @@
     flake = false;
   };
 
-  inputs.opam-nix-monorepo.url = "path:/home/ryan/projects/opam-nix";
+  inputs.opam-nix-monorepo.url = "github:RyanGibb/opam-nix";
   inputs.opam-nix-monorepo.inputs.nixpkgs.follows = "nixpkgs";
   inputs.opam-nix-monorepo.inputs.flake-utils.follows = "flake-utils";
   inputs.opam-nix-monorepo.inputs.opam-repository.follows = "opam-repository";

@@ -111,14 +111,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1662372500,
-        "narHash": "sha256-Bc7K8tjnHU6mp3WSTg38wt0kOaWa14v1C0EhY6Axh5w=",
-        "path": "/home/ryan/projects/opam-nix",
-        "type": "path"
+        "lastModified": 1662380775,
+        "narHash": "sha256-wcJD1dPdPXThkje74/IE2zqhqJBFbTOpuy6/BBSOgPk=",
+        "owner": "RyanGibb",
+        "repo": "opam-nix",
+        "rev": "c8e5813e0be03bb97e73f5cb121d8c91b0e079e7",
+        "type": "github"
       },
       "original": {
-        "path": "/home/ryan/projects/opam-nix",
-        "type": "path"
+        "owner": "RyanGibb",
+        "repo": "opam-nix",
+        "type": "github"
       }
     },
     "opam-overlays": {
