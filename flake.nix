@@ -6,7 +6,7 @@
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.flake-utils.inputs.nixpkgs.follows = "nixpkgs";
 
-  inputs.opam-nix.url = "github:tweag/opam-nix";
+  inputs.opam-nix.url = "github:RyanGibb/opam-nix";
   inputs.opam-nix.inputs.nixpkgs.follows = "nixpkgs";
   inputs.opam-nix.inputs.flake-utils.follows = "flake-utils";
 
@@ -27,21 +27,13 @@
     flake = false;
   };
 
-  inputs.opam-nix-monorepo.url = "github:RyanGibb/opam-nix";
-  inputs.opam-nix-monorepo.inputs.nixpkgs.follows = "nixpkgs";
-  inputs.opam-nix-monorepo.inputs.flake-utils.follows = "flake-utils";
-  inputs.opam-nix-monorepo.inputs.opam-repository.follows = "opam-repository";
-  inputs.opam-nix-monorepo.inputs.opam2json.follows = "opam2json";
-  inputs.opam-nix-monorepo.inputs.flake-compat.follows = "opam-nix";
-
-  outputs = { self, nixpkgs, flake-utils, opam-nix, opam-nix-monorepo,
-      opam2json, nix-filter, opam-repository, opam-overlays, ... }:
+  outputs = { self, nixpkgs, flake-utils, opam-nix, opam2json,
+      nix-filter, opam-repository, opam-overlays, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = nixpkgs.lib;
-        inherit (opam-nix.lib.${system}) queryToScope makeOpamRepo;
-        opam-nix-monorepo-lib = opam-nix-monorepo.lib.${system};
+        inherit (opam-nix.lib.${system}) queryToScope makeOpamRepo srcBuilder;
       in {
         legacyPackages = let
 
@@ -76,13 +68,14 @@
           mkMonorepoScope = src:
             let
               local-repo = makeOpamRepo src;
-              # TODO modify opam-nix with a custom builder to avoid using fork
-              scope = opam-nix-monorepo-lib.queryToScope
+              scope = queryToScope
                 {
                   # pass monorepo = 1 to `opam admin list` to pick up dependencies marked with {?monorepo}
                   resolveArgs.env.monorepo = 1;
                   # TODO filter packages not build with dune (or check if this needs to be done)
                   repos = [ local-repo opam-overlays opam-repository ];
+                  overlays = [ ];
+                  builder = srcBuilder;
                 }
                 {
                   conf-libseccomp = "*";
