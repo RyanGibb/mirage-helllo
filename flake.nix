@@ -90,9 +90,7 @@
                           "overrideScope" "overrideScope'" "result" "callPackage" "newScope"
                           # TODO add a PR in mirage to add an environment variable to non-monorepo
                           # dependancies so we can ignore them (the existing build variable can't be modified)
-                          "hello" "nixpkgs" "packages" "dune" "ocaml" "mirage"
-                          # TODO deduplicate sources based on URL
-                          "functoria" "functoria-runtime" "macaddr" "mirage-clock" "ppx_cstruct" "opam-monorepo"
+                          "hello" "nixpkgs" "packages" "dune" "ocaml" "opam" "opam-monorepo" "dummy"
                         ];
                         scopeFilter = name: builtins.elem "${name}" ignoredAttrs;
                         # TODO get dune build to pick up symlinks
