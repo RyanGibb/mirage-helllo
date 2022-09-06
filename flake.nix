@@ -97,7 +97,7 @@
             in scope.overrideScope' monorepo-overlay;
 
           # read all the opam files from the configured source and build the hello package
-          mkScope = src:
+          mkOpamScope = src:
             let
               local-repo = makeOpamRepo src;
               scope = queryToScope
@@ -126,24 +126,38 @@
                       in
                     ''
                       # find solo5 toolchain
-                      ${if final ? ocaml-solo5 then "export OCAMLFIND_CONF=\"${final.ocaml-solo5}/lib/findlib.conf\"" else ""}
+                      ${if final ? ocaml-solo5 then
+                        "export OCAMLFIND_CONF=\"${final.ocaml-solo5}/lib/findlib.conf\""
+                      else ""}
                       # create duniverse
                       mkdir duniverse
                       echo '(vendored_dirs *)' > duniverse/dune
                       ${createDuniverse}
                     '';
-                    buildPhase = "dune build";
-                    installPhase = "cp -rL ./_build/install/default/bin/ $out";
+                    buildPhase = ''
+                      dune build
+                    '';
+                    installPhase = ''
+                      mkdir $out
+                      cp -L ./dist/hello* $out/
+                    '';
                   }
                 );
               };
             in scope.overrideScope' overlay;
 
           targets = [ "unix" "virtio" "hvt" ];
-          mapTargets = f:
-            let mappedTargets = builtins.map (target: lib.attrsets.nameValuePair target (f (configureSrcFor target))) targets; in
-            builtins.listToAttrs mappedTargets;
-          targetScopes = mapTargets mkScope;
+          mapTargets = mkScope:
+          let
+            pipeTarget = target: lib.pipe target [
+              configureSrcFor
+              mkScope
+            ];
+            mappedTargets = builtins.map
+              (target: lib.attrsets.nameValuePair target (pipeTarget target))
+              targets;
+          in builtins.listToAttrs mappedTargets;
+          targetScopes = mapTargets mkOpamScope;
           targetMonorepoScopes = mapTargets mkMonorepoScope;
         in targetScopes  // { monorepo = targetMonorepoScopes ; };
 
