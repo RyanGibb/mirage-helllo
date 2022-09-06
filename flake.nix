@@ -33,7 +33,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = nixpkgs.lib;
-        inherit (opam-nix.lib.${system}) queryToScope makeOpamRepo srcBuilder;
+        inherit (opam-nix.lib.${system}) makeOpamRepo queryToScope queryToMonorepoScope;
       in {
         legacyPackages = let
 
@@ -66,28 +66,11 @@
 
           # collect all dependancy sources in a scope
           mkMonorepoScope = src:
-            let
-              local-repo = makeOpamRepo src;
-              scope = queryToScope
-                {
-                  # pass monorepo = 1 to `opam admin list` to pick up dependencies marked with {?monorepo}
-                  resolveArgs.env.monorepo = 1;
-                  # TODO filter packages not build with dune (or check if this needs to be done)
-                  repos = [ local-repo opam-overlays opam-repository ];
-                  overlays = [ ];
-                  builder = srcBuilder;
-                }
-                {
-                  conf-libseccomp = "*";
-                  hello = "*";
-                };
-              monorepo-overlay = final: prev: {
-                hello = prev.hello.override {
-                  # Gets opam-nix to pick up dependencies marked with {?monorepo}
-                  extraVars.monorepo = true;
-                };
-              };
-            in scope.overrideScope' monorepo-overlay;
+            let local-repo = makeOpamRepo src; in
+            queryToMonorepoScope
+              # TODO filter packages not build with dune (or check if this needs to be done)
+              { repos = [ local-repo opam-overlays opam-repository ]; }
+              { hello = "*"; };
 
           # read all the opam files from the configured source and build the hello package
           mkOpamScope = src:
