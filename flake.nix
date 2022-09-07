@@ -33,7 +33,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = nixpkgs.lib;
-        inherit (opam-nix.lib.${system}) makeOpamRepo queryToScope queryToMonorepoScope;
+        inherit (opam-nix.lib.${system}) makeOpamRepo queryToScope queryToScopeMonorepo;
       in {
         legacyPackages = let
 
@@ -65,15 +65,15 @@
             };
 
           # collect all dependancy sources in a scope
-          mkMonorepoScope = src:
+          mkScopeMonorepo = src:
             let local-repo = makeOpamRepo src; in
-            queryToMonorepoScope
+            queryToScopeMonorepo
               # TODO filter packages not build with dune (or check if this needs to be done)
               { repos = [ local-repo opam-overlays opam-repository ]; }
               { hello = "*"; };
 
           # read all the opam files from the configured source and build the hello package
-          mkOpamScope = src:
+          mkScopeOpam = src:
             let
               local-repo = makeOpamRepo src;
               scope = queryToScope
@@ -81,7 +81,7 @@
                 { hello = "*"; };
               overlay = final: prev: {
                 hello = prev.hello.overrideAttrs (_ :
-                  let monorepo-scope = mkMonorepoScope src; in
+                  let monorepo-scope = mkScopeMonorepo src; in
                   {
                     phases = [ "unpackPhase" "preBuild" "buildPhase" "installPhase" ];
                     preBuild =
@@ -133,8 +133,8 @@
               (target: lib.attrsets.nameValuePair target (pipeTarget target))
               targets;
           in builtins.listToAttrs mappedTargets;
-          targetScopes = mapTargets mkOpamScope;
-          targetMonorepoScopes = mapTargets mkMonorepoScope;
+          targetScopes = mapTargets mkScopeOpam;
+          targetMonorepoScopes = mapTargets mkScopeMonorepo ;
         in targetScopes  // { monorepo = targetMonorepoScopes ; };
 
         # need to know package name
