@@ -34,6 +34,8 @@
         pkgs = nixpkgs.legacyPackages.${system};
         lib = nixpkgs.lib;
         inherit (opam-nix.lib.${system}) makeOpamRepo queryToScope queryToScopeMonorepo;
+        # need to know package name
+        unikernel-name = "hello";
       in {
         legacyPackages = let
 
@@ -47,9 +49,17 @@
               src = with nix-filter.lib;
                 filter {
                   root = self;
-                  include = [
-                    "config.ml"
-                    "unikernel.ml"
+                  exclude = [
+                    (inDirectory "_build")
+                    (inDirectory "dist")
+                    (inDirectory "duniverse")
+                    (inDirectory "mirage")
+                    "dune"
+                    "dune.build"
+                    "dune.config"
+                    "dune-project"
+                    "dune-workspace"
+                    "Makefile"
                   ];
                 };
               buildInputs = with configure-scope; [ mirage ];
@@ -59,7 +69,7 @@
                 mirage configure -t ${target}
                 # Rename the opam file for package name consistency
                 # And move to root so a recursive search for opam files isn't required
-                cp mirage/hello-${target}.opam hello.opam
+                cp mirage/${unikernel-name}-${target}.opam ${unikernel-name}.opam
               '';
               installPhase = "cp -R . $out";
             };
@@ -70,27 +80,27 @@
             queryToScopeMonorepo
               # TODO filter packages not build with dune (or check if this needs to be done)
               { repos = [ local-repo opam-overlays opam-repository ]; }
-              { hello = "*"; };
+              { ${unikernel-name} = "*"; };
 
-          # read all the opam files from the configured source and build the hello package
+          # read all the opam files from the configured source and build the ${unikernel-name} package
           mkScopeOpam = src:
             let
               local-repo = makeOpamRepo src;
               scope = queryToScope
                 { repos = [ local-repo opam-repository ]; }
-                { hello = "*"; };
+                { ${unikernel-name} = "*"; };
               overlay = final: prev: {
-                hello = prev.hello.overrideAttrs (_ :
+                ${unikernel-name} = prev.${unikernel-name}.overrideAttrs (_ :
                   let monorepo-scope = mkScopeMonorepo src; in
                   {
                     phases = [ "unpackPhase" "preBuild" "buildPhase" "installPhase" ];
                     preBuild =
                       let
                         ignoredAttrs = [
-                          "overrideScope" "overrideScope'" "result" "callPackage" "newScope"
+                          "overrideScope" "overrideScope'" "result" "callPackage" "newScope" "packages"
                           # TODO add a PR in mirage to add an environment variable to non-monorepo
                           # dependancies so we can ignore them (the existing build variable can't be modified)
-                          "hello" "nixpkgs" "packages" "dune" "ocaml" "opam" "opam-monorepo" "dummy"
+                          "${unikernel-name}" "dune" "ocaml" "opam" "opam-monorepo" "dummy"
                         ];
                         scopeFilter = name: builtins.elem "${name}" ignoredAttrs;
                         # TODO get dune build to pick up symlinks
@@ -115,14 +125,14 @@
                     '';
                     installPhase = ''
                       mkdir $out
-                      cp -L ./dist/hello* $out/
+                      cp -L ./dist/${unikernel-name}* $out/
                     '';
                   }
                 );
               };
             in scope.overrideScope' overlay;
 
-          targets = [ "unix" "virtio" "hvt" ];
+          targets = [ "xen" "qubes" "unix" "macosx" "virtio" "hvt" "spt" "muen" "genode" ];
           mapTargets = mkScope:
           let
             pipeTarget = target: lib.pipe target [
@@ -137,8 +147,7 @@
           targetMonorepoScopes = mapTargets mkScopeMonorepo ;
         in targetScopes  // { monorepo = targetMonorepoScopes ; };
 
-        # need to know package name
-        defaultPackage = self.legacyPackages.${system}.unix.hello;
+        defaultPackage = self.legacyPackages.${system}.unix.${unikernel-name};
       });
 }
 
