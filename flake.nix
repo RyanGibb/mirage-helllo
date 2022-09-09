@@ -34,7 +34,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = nixpkgs.lib;
-        inherit (opam-nix.lib.${system}) makeOpamRepo queryToScope queryToMonorepo;
+        inherit (opam-nix.lib.${system}) makeOpamRepo queryToScope buildOpamMonorepo;
         inherit (lib.attrsets) mapAttrsToList mapAttrs' nameValuePair;
         # need to know package name
         unikernel-name = "hello";
@@ -70,26 +70,16 @@
               nativeBuildInputs = with configure-scope; [ dune ocaml ];
               phases = [ "unpackPhase" "configurePhase" "installPhase" "fixupPhase" ];
               configurePhase = ''
-                mirage configure -t ${target}
+                mirage configure -f ${mirage-dir}/config.ml -t ${target}
                 # Rename the opam file for package name consistency
                 # And move to root so a recursive search for opam files isn't required
-                cp mirage/${unikernel-name}-${target}.opam ${unikernel-name}.opam
+                cp ${mirage-dir}/mirage/${unikernel-name}-${target}.opam ${unikernel-name}.opam
               '';
               installPhase = "cp -R . $out";
             };
 
           # collect all dependancy sources in a scope
-          mkScopeMonorepo = src:
-            let local-repo = makeOpamRepo src; in
-            queryToMonorepo
-              # TODO filter packages not build with dune (or check if this needs to be done)
-              {
-                  repos = [ local-repo opam-overlays opam-repository ];
-                  # TODO add a PR in mirage to add an environment variable to non-monorepo
-                  # dependancies so we can ignore them (the existing build variable can't be modified).
-                  filterPkgs = [ "${unikernel-name}" "ocaml-system" "opam-monorepo" ];
-              }
-              { ${unikernel-name} = "*"; };
+          mkScopeMonorepo = src: buildOpamMonorepo { } src { };
 
           # read all the opam files from the configured source and build the ${unikernel-name} package
           mkScopeOpam = src:
@@ -105,10 +95,16 @@
                     phases = [ "unpackPhase" "preBuild" "buildPhase" "installPhase" ];
                     preBuild =
                       let
+                        ignoredAttrs = [
+                          # TODO add a PR in mirage to add an environment variable to non-monorepo
+                          # dependancies so we can ignore them (the existing build variable can't be modified)
+                          "${unikernel-name}" "ocaml" "opam" "opam-monorepo" "dummy"
+                        ];
+                        scopeFilter = name: builtins.elem "${name}" ignoredAttrs;
                         # TODO get dune build to pick up symlinks
                         createDep = name: path: "cp -r ${path} duniverse/${name}";
                         createDeps = mapAttrsToList
-                            (name: path: createDep name path)
+                            (name: path: if scopeFilter name then "" else createDep name path)
                             monorepo-scope;
                         createDuniverse = builtins.concatStringsSep "\n" createDeps;
                       in
