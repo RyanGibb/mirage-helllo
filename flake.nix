@@ -26,7 +26,7 @@
     url = "github:dune-universe/opam-overlays";
     flake = false;
   };
-  inputs.opam-nix.inputs.opam-overlays.follows = "opam-repository";
+  inputs.opam-nix.inputs.opam-overlays.follows = "opam-overlays";
 
   outputs = { self, nixpkgs, flake-utils, opam-nix, opam2json,
       nix-filter, opam-repository, opam-overlays, ... }:
