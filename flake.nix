@@ -38,6 +38,7 @@
         inherit (lib.attrsets) mapAttrsToList mapAttrs' nameValuePair;
         # need to know package name
         unikernel-name = "hello";
+        mirage-dir = ".";
       in {
         legacyPackages = let
 
@@ -55,7 +56,7 @@
                     (inDirectory "_build")
                     (inDirectory "dist")
                     (inDirectory "duniverse")
-                    (inDirectory "mirage")
+                    (inDirectory "${mirage-dir}/mirage")
                     "dune"
                     "dune.build"
                     "dune.config"
@@ -119,7 +120,7 @@
                       ${createDuniverse}
                     '';
                     buildPhase = ''
-                      dune build
+                      dune build ${mirage-dir}
                     '';
                     installPhase = ''
                       mkdir $out
