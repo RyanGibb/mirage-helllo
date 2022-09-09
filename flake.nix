@@ -26,6 +26,7 @@
     url = "github:dune-universe/opam-overlays";
     flake = false;
   };
+  inputs.opam-nix.inputs.opam-overlays.follows = "opam-repository";
 
   outputs = { self, nixpkgs, flake-utils, opam-nix, opam2json,
       nix-filter, opam-repository, opam-overlays, ... }:
@@ -33,7 +34,8 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = nixpkgs.lib;
-        inherit (opam-nix.lib.${system}) makeOpamRepo queryToScope queryToScopeMonorepo;
+        inherit (opam-nix.lib.${system}) makeOpamRepo queryToScope queryToMonorepo;
+        inherit (lib.attrsets) mapAttrsToList mapAttrs' nameValuePair;
         # need to know package name
         unikernel-name = "hello";
       in {
@@ -60,6 +62,8 @@
                     "dune-project"
                     "dune-workspace"
                     "Makefile"
+                    "flake.nix"
+                    "flake.lock"
                   ];
                 };
               buildInputs = with configure-scope; [ mirage ];
@@ -77,7 +81,7 @@
           # collect all dependancy sources in a scope
           mkScopeMonorepo = src:
             let local-repo = makeOpamRepo src; in
-            queryToScopeMonorepo
+            queryToMonorepo
               # TODO filter packages not build with dune (or check if this needs to be done)
               { repos = [ local-repo opam-overlays opam-repository ]; }
               { ${unikernel-name} = "*"; };
@@ -97,7 +101,6 @@
                     preBuild =
                       let
                         ignoredAttrs = [
-                          "overrideScope" "overrideScope'" "result" "callPackage" "newScope" "packages"
                           # TODO add a PR in mirage to add an environment variable to non-monorepo
                           # dependancies so we can ignore them (the existing build variable can't be modified)
                           "${unikernel-name}" "dune" "ocaml" "opam" "opam-monorepo" "dummy"
@@ -105,7 +108,7 @@
                         scopeFilter = name: builtins.elem "${name}" ignoredAttrs;
                         # TODO get dune build to pick up symlinks
                         createDep = name: path: "cp -r ${path} duniverse/${name}";
-                        createDeps = lib.attrsets.mapAttrsToList
+                        createDeps = mapAttrsToList
                             (name: path: if scopeFilter name then "" else createDep name path)
                             monorepo-scope;
                         createDuniverse = builtins.concatStringsSep "\n" createDeps;
@@ -139,15 +142,20 @@
               configureSrcFor
               mkScope
             ];
-            mappedTargets = builtins.map
-              (target: lib.attrsets.nameValuePair target (pipeTarget target))
-              targets;
+            mappedTargets = builtins.map (target: nameValuePair target (pipeTarget target)) targets;
           in builtins.listToAttrs mappedTargets;
-          targetScopes = mapTargets mkScopeOpam;
-          targetMonorepoScopes = mapTargets mkScopeMonorepo ;
-        in targetScopes  // { monorepo = targetMonorepoScopes ; };
+          targetUnikernels = mapAttrs'
+            (target: scope: nameValuePair target scope.${unikernel-name})
+            (mapTargets mkScopeOpam);
+          targetScopes = mapAttrs'
+            (target: scope: nameValuePair "${target}-scope" scope)
+            (mapTargets mkScopeOpam);
+          targetMonorepoScopes = mapAttrs'
+            (target: scope: nameValuePair "${target}-monorepo" scope)
+            (mapTargets mkScopeMonorepo);
+        in targetUnikernels // targetScopes // targetMonorepoScopes;
 
-        defaultPackage = self.legacyPackages.${system}.unix.${unikernel-name};
+        defaultPackage = self.legacyPackages.${system}.unix;
       });
 }
 

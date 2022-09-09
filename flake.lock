@@ -71,6 +71,9 @@
         "nixpkgs": [
           "nixpkgs"
         ],
+        "opam-overlays": [
+          "opam-repository"
+        ],
         "opam-repository": [
           "opam-repository"
         ],
