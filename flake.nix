@@ -154,6 +154,18 @@
         in targetUnikernels // targetScopes // targetMonorepoScopes;
 
         defaultPackage = self.legacyPackages.${system}.unix;
+
+        devShell.default = with pkgs; [
+          ocaml
+          opam
+          dune_3
+          ocamlPackages.utop
+          pkg-config
+          gcc
+          bintools-unwrapped
+          gmp
+        ];
+
       });
 }
 
