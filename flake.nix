@@ -34,7 +34,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         lib = nixpkgs.lib;
-        inherit (opam-nix.lib.${system}) makeOpamRepo queryToScope buildOpamMonorepo;
+        inherit (opam-nix.lib.${system}) queryToScope buildOpamMonorepo buildOpamProject;
         inherit (lib.attrsets) mapAttrsToList mapAttrs' nameValuePair;
         # need to know package name
         unikernel-name = "hello";
@@ -87,10 +87,7 @@
           # read all the opam files from the configured source and build the ${unikernel-name} package
           mkScopeOpam = src:
             let
-              local-repo = makeOpamRepo src;
-              scope = queryToScope
-                { repos = [ local-repo opam-repository ]; }
-                { ${unikernel-name} = "*"; };
+              scope = buildOpamProject { } unikernel-name src { };
               overlay = final: prev: {
                 ${unikernel-name} = prev.${unikernel-name}.overrideAttrs (_ :
                   let monorepo-scope = mkScopeMonorepo src; in
