@@ -82,11 +82,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1662568057,
-        "narHash": "sha256-jdltC+8VDiBU0pB53iIZfmObiPGzJD2eX/KpkxeOyWU=",
+        "lastModified": 1662744597,
+        "narHash": "sha256-kiKaZaf5pGRBYB4r3IoSR+JzxVWqQuMJeLVMeItvrRg=",
         "owner": "RyanGibb",
         "repo": "opam-nix",
-        "rev": "707f501db503398edb1080e449f0369974bc39ee",
+        "rev": "5ca8d3275f5f2ba14f88a60926f2e7975ea0abf9",
         "type": "github"
       },
       "original": {
