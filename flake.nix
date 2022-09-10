@@ -95,17 +95,9 @@
                     phases = [ "unpackPhase" "preBuild" "buildPhase" "installPhase" ];
                     preBuild =
                       let
-                        ignoredAttrs = [
-                          # TODO add a PR in mirage to add an environment variable to non-monorepo
-                          # dependancies so we can ignore them (the existing build variable can't be modified)
-                          "${unikernel-name}" "ocaml" "opam" "opam-monorepo" "dummy"
-                        ];
-                        scopeFilter = name: builtins.elem "${name}" ignoredAttrs;
                         # TODO get dune build to pick up symlinks
                         createDep = name: path: "cp -r ${path} duniverse/${name}";
-                        createDeps = mapAttrsToList
-                            (name: path: if scopeFilter name then "" else createDep name path)
-                            monorepo-scope;
+                        createDeps = mapAttrsToList createDep monorepo-scope;
                         createDuniverse = builtins.concatStringsSep "\n" createDeps;
                       in
                     ''
