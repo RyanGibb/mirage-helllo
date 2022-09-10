@@ -45,6 +45,8 @@
           # run `mirage configure` on source,
           # with mirage, dune, and ocaml from `opam-nix`
           configureSrcFor = target:
+            # Get mirage tool and dependancies from opam.
+            # We could also get them from nixpkgs but they may not be up to date.
             let configure-scope = queryToScope { } { mirage = "*"; }; in
             pkgs.stdenv.mkDerivation {
               name = "configured-src";
